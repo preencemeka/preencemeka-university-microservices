@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = Number.parseInt(process.env.PORT || '8080', 10);
@@ -17,6 +18,7 @@ app.use(cors({
   origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map((value) => value.trim()),
 }));
 app.use(express.json());
+app.use(createRateLimiter({ max: 300 }));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'api-gateway' });
@@ -45,7 +47,9 @@ app.use('/api', async (req, res) => {
   }
 
   try {
-    const targetUrl = new URL(req.originalUrl.replace(/^\/api/, ''), serviceTargets[routeKey]);
+    const targetUrl = new URL(serviceTargets[routeKey]);
+    targetUrl.pathname = req.path;
+    targetUrl.search = new URLSearchParams(req.query).toString();
     const headers = {
       accept: 'application/json',
     };
@@ -101,3 +105,14 @@ function isPublicRequest(req) {
 app.listen(PORT, () => {
   console.log(`API gateway listening on port ${PORT}`);
 });
+
+function createRateLimiter({ max }) {
+  return rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    skip: (req) => req.path === '/health',
+    message: { error: 'Too many requests, please try again later.' },
+  });
+}

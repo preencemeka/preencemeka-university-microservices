@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
 const crypto = require('node:crypto');
 
@@ -12,6 +13,7 @@ const pool = new Pool({ connectionString: DATABASE_URL });
 
 app.use(cors());
 app.use(express.json());
+app.use(createRateLimiter({ max: 250 }));
 
 app.get('/health', async (_req, res) => {
   try {
@@ -192,4 +194,15 @@ function mapGrade(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function createRateLimiter({ max }) {
+  return rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    skip: (req) => req.path === '/health',
+    message: { error: 'Too many requests, please try again later.' },
+  });
 }

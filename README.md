@@ -25,6 +25,7 @@ A complete MVP monorepo for **Preencemeka University** built with **React**, **N
 - JWT protection for private routes
 - Public auth routes and public course catalog reads
 - CORS configuration through environment variables
+- Basic request rate limiting
 - `/health` endpoint
 
 ### Student service
@@ -98,6 +99,7 @@ docker compose up --build
 Once healthy:
 - Frontend: `http://localhost:5173`
 - API Gateway: `http://localhost:8080`
+- Services: `http://localhost:4001` to `http://localhost:4004`
 - Health: `http://localhost:8080/health`
 
 The PostgreSQL container automatically creates the required service databases during first startup, and each service creates its own tables on boot.
@@ -178,4 +180,5 @@ npm run lint
 
 - Health endpoints are available on every service at `/health`.
 - The course catalog seeds sample courses automatically when the course database is empty.
+- Docker Compose publishes the service ports so the gateway can reliably reach the downstream services through `host.docker.internal` during containerized startup.
 - This MVP focuses on the required flows and validation/error responses without introducing extra infrastructure beyond the requested stack.

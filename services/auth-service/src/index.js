@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
 const crypto = require('node:crypto');
 
@@ -14,6 +15,7 @@ const pool = new Pool({ connectionString: DATABASE_URL });
 
 app.use(cors());
 app.use(express.json());
+app.use(createRateLimiter({ max: 200 }));
 
 app.get('/health', async (_req, res) => {
   try {
@@ -24,7 +26,7 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-app.post('/auth/register', async (req, res) => {
+app.post('/auth/register', createRateLimiter({ max: 20 }), async (req, res) => {
   const { email, password, role, fullName } = req.body || {};
   const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
   const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : 'student';
@@ -62,7 +64,7 @@ app.post('/auth/register', async (req, res) => {
   }
 });
 
-app.post('/auth/login', async (req, res) => {
+app.post('/auth/login', createRateLimiter({ max: 30 }), async (req, res) => {
   const { email, password } = req.body || {};
   const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
@@ -158,4 +160,15 @@ function mapUser(row) {
     fullName: row.full_name,
     createdAt: row.created_at,
   };
+}
+
+function createRateLimiter({ max }) {
+  return rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    skip: (req) => req.path === '/health',
+    message: { error: 'Too many requests, please try again later.' },
+  });
 }
